@@ -5,7 +5,7 @@ repos:
       - id: check-yaml
       - id: end-of-file-fixer
   - repo: https://github.com/DetachHead/basedpyright-pre-commit-mirror
-    rev: v1.36.0
+    rev: 1.36.0
     hooks:
       - id: basedpyright
   - repo: https://github.com/astral-sh/ruff-pre-commit
