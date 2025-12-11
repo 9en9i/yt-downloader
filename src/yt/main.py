@@ -1,13 +1,14 @@
+import asyncio
 from pathlib import Path
-from subprocess import run
 from typing import Any
 
+import ffmpeg  # pyright: ignore[reportMissingTypeStubs]
 from pytubefix import YouTube  # pyright: ignore[reportMissingTypeStubs]
 
 _empty: Any = object()
 
 
-def download_segment(
+async def download_segment(
     url: str,
     *,
     start: float,
@@ -32,41 +33,31 @@ def download_segment(
     if stream is None:
         msg = "stream not available"
         raise RuntimeError(msg)
-    result = stream.download(filename="__temp_full_video.mp4")
-    if result is None:
-        raise FileNotFoundError(url)
-    full_path = Path(result)
 
-    # 2. Вырезаем нужный кусок
-    # -ss <start> -to <end> сохраняет качество без повторного энкодинга
-    _ = run(  # noqa: S603
-        [  # noqa: S607
-            "ffmpeg",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-ss",
-            str(start),
-            "-to",
-            str(end),
-            "-i",
-            str(full_path),
-            "-c",
-            "copy",
-            str(output),
-        ],
-        check=True,
-    )
+    direct_url: str = stream.url  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
 
-    full_path.unlink(missing_ok=True)
+    # ffmpeg-python работает sync, так что гоняем его в отдельном треде
+    def run_ffmpeg() -> None:
+        (
+            ffmpeg.input(direct_url, ss=start, to=end)  # pyright: ignore[reportUnknownMemberType]
+            .output(str(output), c="copy", loglevel="error")
+            .overwrite_output()
+            .run()
+        )
+
+    await asyncio.to_thread(run_ffmpeg)
     return output
 
 
-if __name__ == "__main__":
-    video = download_segment(
+async def main() -> None:
+    out = await download_segment(
         "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         start=10.0,
         end=25.0,
         output=Path("segment.mp4"),
     )
-    print("saved:", video)
+    print("saved:", out)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
