@@ -22,7 +22,12 @@ def download_segment(
         raise RuntimeError(msg)
 
     # 1. Скачиваем исходник
-    yt = YouTube(url)
+    yt = YouTube(
+        url,
+        use_oauth=True,
+        allow_oauth_cache=True,
+        token_file="./yt_oauth.json",  # noqa: S106
+    )
     stream = yt.streams.get_highest_resolution()  # pyright: ignore[reportUnknownMemberType]
     if stream is None:
         msg = "stream not available"
